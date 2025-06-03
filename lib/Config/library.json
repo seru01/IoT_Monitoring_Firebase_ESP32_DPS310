@@ -1,0 +1,14 @@
+{
+  "name": "Config",
+  "version": "1.0.0",
+  "keywords": "Configuration, Config",
+  "description": "Configuration file for ESP32",
+  "authors": [
+    {
+      "name": "reynald bartiana",
+      "email": "reynaldbatiana@gmail.com"
+    }
+  ],
+  "frameworks": "arduino",
+  "platforms": "espressif32"
+}

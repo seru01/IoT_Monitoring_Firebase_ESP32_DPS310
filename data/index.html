@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>IOT_PROJECT_TEMP-PRESSURE_ESP32S3_DPS310</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    body {
+      margin: 0;
+      font-family: "Segoe UI", sans-serif;
+      background: #f5f7fa;
+      color: #333;
+      padding: 2rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    h1 {
+      margin-bottom: 2rem;
+    }
+
+    .card {
+      background: #ffffffcc;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+      border-radius: 16px;
+      padding: 1.5rem;
+      width: 100%;
+      max-width: 600px;
+      margin-bottom: 2rem;
+      backdrop-filter: blur(10px);
+    }
+
+    .label {
+      font-size: 1.2rem;
+      margin-bottom: 0.5rem;
+      color: #444;
+    }
+
+    .highest {
+      font-weight: bold;
+      color: #d6336c;
+      margin-bottom: 1rem;
+    }
+    .highestPressure {
+      font-weight: bold;
+      color: rgba(54, 162, 235, 1);
+      margin-bottom: 1rem;
+    }
+
+    canvas {
+      width: 100%;
+      max-width: 100%;
+    }
+
+    button {
+      padding: 0.8rem 1.5rem;
+      font-size: 1rem;
+      border: none;
+      border-radius: 8px;
+      background-color: #4CAF50;
+      color: white;
+      cursor: pointer;
+      transition: background-color 0.3s;
+      margin-top: 1rem;
+    }
+
+    button.off {
+      background-color: #f44336;
+    }
+
+    @media (max-width: 768px) {
+      .card {
+        width: 90%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <h1>📡 My Homelab Dashboard</h1>
+
+  <div class="card">
+    <div class="label">🌡️ Temperature (°C)</div>
+    <div class="highest">Highest: <span id="tempHigh">--</span> °C</div>
+    <canvas id="tempChart"></canvas>
+  </div>
+
+  <div class="card">
+    <div class="label">📈 Pressure (hPa)</div>
+    <div class="highestPressure">Highest: <span id="pressureHigh">--</span> hPa</div>
+    <canvas id="pressureChart"></canvas>
+  </div>
+
+  <div class="card">
+    <div class="label">💡 LED Control</div>
+    <button id="ledButton" class="off">Turn ON</button>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+  <script>
+    const tempChartCtx = document.getElementById("tempChart").getContext("2d");
+    const pressureChartCtx = document.getElementById("pressureChart").getContext("2d");
+
+    const tempChart = new Chart(tempChartCtx, {
+      type: "line",
+      data: {
+        labels: [],
+        datasets: [{
+          label: "Temperature (°C)",
+          data: [],
+          backgroundColor: "rgba(255, 99, 132, 0.2)",
+          borderColor: "rgba(255, 99, 132, 1)",
+          borderWidth: 2,
+          fill: true,
+          tension: 0.3
+        }]
+      },
+      options: {
+        scales: {
+          x: { title: { display: true, text: "Time" } },
+          y: { beginAtZero: false }
+        }
+      }
+    });
+
+    const pressureChart = new Chart(pressureChartCtx, {
+      type: "line",
+      data: {
+        labels: [],
+        datasets: [{
+          label: "Pressure (hPa)",
+          data: [],
+          backgroundColor: "rgba(54, 162, 235, 0.2)",
+          borderColor: "rgba(54, 162, 235, 1)",
+          borderWidth: 2,
+          fill: true,
+          tension: 0.3
+        }]
+      },
+      options: {
+        scales: {
+          x: { title: { display: true, text: "Time" } },
+          y: { beginAtZero: false }
+        }
+      }
+    });
+
+    let highestTemp = -Infinity;
+    let highestPressure = -Infinity;
+
+    const updateChart = (chart, label, value) => {
+      const maxPoints = 10;
+      if (chart.data.labels.length >= maxPoints) {
+        chart.data.labels.shift();
+        chart.data.datasets[0].data.shift();
+      }
+      chart.data.labels.push(label);
+      chart.data.datasets[0].data.push(value.toFixed(2));
+      chart.update();
+    };
+
+    const updateHighest = (value, currentMax, elementId) => {
+      if (value > currentMax) {
+        document.getElementById(elementId).textContent = value.toFixed(2);
+        return value;
+      }
+      return currentMax;
+    };
+
+    const client = mqtt.connect('wss://a22f5d5594744d5c952c2157662a16e1.s1.eu.hivemq.cloud:8884/mqtt', {
+      clientId: 'web_' + Math.random().toString(16).substr(2, 6),
+      username: 'IoTDPS310ESP32-TEMP-PRESSURE',
+      password: 'IoTDPS310ESP32-TEMP-PRESSURE',
+      clean: true,
+      reconnectPeriod: 1000,
+      connectTimeout: 4000,
+    });
+
+    client.on('connect', () => {
+      console.log("✅ Connected to MQTT Broker");
+      client.subscribe('iot/temp/pressure');
+    });
+
+    client.on('message', (topic, message) => {
+      try {
+        const payload = JSON.parse(message.toString());
+        const now = new Date().toLocaleTimeString();
+
+        if (typeof payload.temperature === 'number') {
+          updateChart(tempChart, now, payload.temperature);
+          highestTemp = updateHighest(payload.temperature, highestTemp, "tempHigh");
+        }
+
+        if (typeof payload.pressure === 'number') {
+          const roundedPressure = parseFloat(payload.pressure.toFixed(2));
+          updateChart(pressureChart, now, roundedPressure);
+          highestPressure = updateHighest(roundedPressure, highestPressure, "pressureHigh");
+        }
+
+      } catch (err) {
+        console.error("❌ Failed to parse message:", err);
+      }
+    });
+
+    client.on('error', err => console.error("❌ MQTT Error:", err));
+
+    // LED Toggle Logic
+    const ledButton = document.getElementById("ledButton");
+    let ledState = false;
+
+    ledButton.addEventListener("click", () => {
+      ledState = !ledState;
+      const message = ledState ? "on" : "off";
+      client.publish("iot/led/control", message);
+      ledButton.textContent = ledState ? "Turn OFF" : "Turn ON";
+      ledButton.classList.toggle("off", !ledState);
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,14 @@
+{
+  "name": "MQtt_Handler",
+  "version": "1.0.0",
+  "keywords": "Mqtt,server, port, user, password, topic, client, publish, subscribe",
+  "description": "Custom MQTT handler for ESP32, supporting server, port, user, password, topic, client, publish, and subscribe functionalities.",
+  "authors": [
+    {
+      "name": "reynald bartiana",
+      "email": "reynaldbatiana@gmail.com"
+    }
+  ],
+  "frameworks": "arduino",
+  "platforms": "espressif32"
+}
