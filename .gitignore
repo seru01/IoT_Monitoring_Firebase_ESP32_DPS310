@@ -3,5 +3,5 @@
 .vscode/c_cpp_properties.json
 .vscode/launch.json
 .vscode/ipch
-.Mqtt_Handler/include/MqttConfig.h
-.WiFi_Handler/include/WiFiConfig.h
+Mqtt_Handler/include/MqttConfig.h
+WiFi_Handler/include/WiFiConfig.h
